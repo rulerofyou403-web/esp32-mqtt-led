@@ -11,8 +11,8 @@ MQTT_BROKER = "://hivemq.com"
 GITHUB_USER = "rulerofyou403-web"
 
 # Topics
-TOPIC_COMMAND = f"wyohack/rulerofyou403-web/led/command"
-TOPIC_STATUS = f"wyohack/rulerofyou403/led/status"
+TOPIC_COMMAND = f"wyohack/{GITHUB_USER}/led/command"
+TOPIC_STATUS = f"wyohack/{GITHUB_USER}/led/status"
 
 # Hardware Setup (GPIO 12)
 led = machine.Pin(12, machine.Pin.OUT)
