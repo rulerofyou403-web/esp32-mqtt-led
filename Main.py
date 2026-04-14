@@ -10,15 +10,15 @@ WIFI_PASS = "imbored!"
 MQTT_BROKER = "://hivemq.com"
 GITHUB_USER = "rulerofyou403-web"
 
-# Topics (Structured as per Challenge Requirements)
+# Topics
 TOPIC_COMMAND = f"wyohack/{GITHUB_USER}/led/command"
 TOPIC_STATUS = f"wyohack/{GITHUB_USER}/led/status"
 
 # Hardware Setup (GPIO 12)
 led = machine.Pin(12, machine.Pin.OUT)
 
-# Unique Client ID based on ESP32 MAC address
-CLIENT_ID = b"esp32_led_controller_" + ubinascii.hexlify(machine.unique_id())
+# Unique Client ID
+CLIENT_ID = b"esp32_" + ubinascii.hexlify(machine.unique_id())
 
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
@@ -32,8 +32,7 @@ def connect_wifi():
 
 def sub_cb(topic, msg):
     command = msg.decode().strip().upper()
-    print(f"Command Received: {command}")
-    
+    print(f"Received: {command}")
     if command == "ON":
         led.value(1)
         client.publish(TOPIC_STATUS, "ON")
@@ -41,17 +40,15 @@ def sub_cb(topic, msg):
         led.value(0)
         client.publish(TOPIC_STATUS, "OFF")
 
-# --- Main Execution ---
+# --- Main ---
 connect_wifi()
-
 client = MQTTClient(CLIENT_ID, MQTT_BROKER)
 client.set_callback(sub_cb)
 
 try:
     client.connect()
     client.subscribe(TOPIC_COMMAND)
-    print(f"Subscribed to: {TOPIC_COMMAND}")
-
+    print(f"Online! Command topic: {TOPIC_COMMAND}")
     while True:
         client.check_msg()
         time.sleep(0.1)
