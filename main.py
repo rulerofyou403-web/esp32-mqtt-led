@@ -1,70 +1,101 @@
 import network
 import time
 import machine
-import ubinascii
-import random
 from machine import Pin
-from umqtt.robust import MQTTClient
+from umqtt.simple import MQTTClient
 
-# --- CONFIGURATION ---
-WIFI_SSID = "Wifiworks"
-WIFI_PASS = "imbored!"
-MQTT_BROKER = "broker.hivemq.com"
-USER_ID = "rulerofyou403-web"
+# =========================
+# WIFI
+# =========================
+WIFI_SSID = "Wifiwork"
+WIFI_PASSWORD = "imbored!"
 
-# Topics
-TOPIC_COMMAND = f"wyohack/{USER_ID}/led/command".encode()
-TOPIC_STATUS = f"wyohack/{USER_ID}/led/status".encode()
+# =========================
+# MQTT
+# =========================
+BROKER = "broker.hivemq.com"
+PORT = 1883
 
-# Hardware Setup (GPIO 12)
-led = Pin(12, Pin.OUT)
+# 🔥 FIXED CLIENT ID (CRITICAL)
+CLIENT_ID = b"esp32_led_device"
 
-# GENERATE A TOTALLY UNIQUE CLIENT ID TO FIX -202 ERROR
-# This adds a random number and a timestamp to avoid "duplicate ID" kicks
-unique_id = ubinascii.hexlify(machine.unique_id()).decode()
-CLIENT_ID = f"ruler_{unique_id}_{random.getrandbits(10)}_{int(time.time())}".encode()
+NAME = "rulerofyou403"
 
-def sub_cb(topic, msg):
-    command = msg.decode().strip().upper()
-    print(f"Received Command: {command}")
-    
-    if command == "ON":
-        led.value(1)
-        print("LED: ON")
+TOPIC_CMD = b"wyohack/" + NAME.encode() + b"/led/command"
+TOPIC_STATUS = b"wyohack/" + NAME.encode() + b"/led/status"
+
+# =========================
+# LED
+# =========================
+LED = Pin(12, Pin.OUT)
+
+client = None
+
+
+# =========================
+# WIFI
+# =========================
+def wifi():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+
+    print("Connecting WiFi...")
+    wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+
+    while not wlan.isconnected():
+        time.sleep(1)
+
+    print("WiFi OK:", wlan.ifconfig()[0])
+
+
+# =========================
+# CALLBACK
+# =========================
+def callback(topic, msg):
+    print("🔥 MESSAGE:", msg)
+
+    cmd = msg.decode().strip().upper()
+
+    if cmd == "ON":
+        LED.value(1)
         client.publish(TOPIC_STATUS, b"ON")
-    elif command == "OFF":
-        led.value(0)
-        print("LED: OFF")
+        print("LED ON")
+
+    elif cmd == "OFF":
+        LED.value(0)
         client.publish(TOPIC_STATUS, b"OFF")
+        print("LED OFF")
 
-# Wi-Fi Connection
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-wlan.connect(WIFI_SSID, WIFI_PASS)
 
-print("Connecting Wi-Fi...")
-while not wlan.isconnected():
-    time.sleep(1)
-print("Wi-Fi Connected!", wlan.ifconfig()[0])
+# =========================
+# MQTT CONNECT
+# =========================
+def mqtt():
+    global client
 
-# MQTT Connection
-client = MQTTClient(CLIENT_ID, MQTT_BROKER)
-client.set_callback(sub_cb)
+    print("Connecting MQTT...")
 
-print(f"Connecting to broker with ID: {CLIENT_ID.decode()}...")
-try:
+    client = MQTTClient(CLIENT_ID, BROKER, PORT)
+
+    client.set_callback(callback)
+
     client.connect()
-    client.subscribe(TOPIC_COMMAND)
-    print("--- ONLINE! ---")
-    print(f"Listening on: {TOPIC_COMMAND.decode()}")
-except Exception as e:
-    print(f"Connection Failed: {e}")
-    print("Wait 10 seconds and try again.")
 
-# Main Loop
-while True:
-    try:
+    client.subscribe(TOPIC_CMD)
+
+    print("MQTT READY")
+
+
+# =========================
+# MAIN LOOP
+# =========================
+def main():
+    wifi()
+    mqtt()
+
+    while True:
         client.check_msg()
-        time.sleep(0.1)
-    except:
-        machine.reset() # Reboot if connection drops
+        time.sleep(0.2)
+
+
+main()
